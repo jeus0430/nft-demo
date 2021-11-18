@@ -34,8 +34,7 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
     bool private _isPresale;
 
     string private baseTokenURI;
-
-    address private developerAddress = 0xDEA5e36DC33A3aed5CA275E463eDd283F680D1c6;
+    uint256 private deadline;
 
     event OnePieceCreated(address to, uint256 indexed id);
 
@@ -43,6 +42,12 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
         if (_msgSender() != owner()) {
             require(SALE_OPEN == true, "SALES: Please wait a big longer before buying Anonys ;)");
         }
+
+        if (_isPresale) {
+            require(deadline > 0, "SALES: Presale not started yet!");
+            require(block.timestamp <= deadline, "SALES: Presale ended!");
+        }
+
         require(_totalSupply() <= MAX_ELEMENTS, "SALES: Sale end");
 
         if (_msgSender() != owner()) {
@@ -53,6 +58,8 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
 
     constructor (string memory baseURI) ERC721("Anonys", "ANN") {
         setBaseURI(baseURI);
+        SALE_OPEN = false;
+        _isPresale = false;
     }
 
     function startPreSale() public onlyOwner {
@@ -61,14 +68,18 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
 
         _price = PRICE_PRESALE;
         _maxElements = MAX_ELEMENTS_PRESALE;
+        deadline = block.timestamp + 1 days;
     }
 
-    function mint(address payable _to, uint256 memory _id) public payable saleIsOpen {
+    function mint(address payable _to, uint256  _id) public payable saleIsOpen {
         uint256 total = _totalSupply();
         require(_isOccupiedId[_id] == false, "MINT: Those id already have been used for other customers");
 
+        require(total + 1 <= _maxElements, "MINT: Current count exceeds maximum element count.");
+        require(total <= _maxElements, "MINT: Please go to the Opensea to buy BoboGlyphVerse.");
+
         if (_to != owner()) {
-            require(msg.value >= _price, "MINT: Current value is below the sales price of AnonyVerse");
+            require(msg.value >= _price, "MINT: Current value is below the sales price of Anony");
         }
 
         _tokenIdTracker.increment();
@@ -79,11 +90,10 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
         emit OnePieceCreated(_to, _id);
     }
 
+
     function startPublicSale() public onlyOwner {
         _isPresale = false;
-
         SALE_OPEN = true;
-
         _price = PRICE;
         _maxElements = MAX_ELEMENTS;
     }
@@ -104,10 +114,6 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
         return _occupiedList;
     }
 
-    function maxMint() public view returns (uint256) {
-        return _maxMint;
-    }
-
     function maxSales() public view returns (uint256) {
         return _maxElements;
     }
@@ -116,8 +122,12 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
         return MAX_ELEMENTS;
     }
 
-    function raised() public view returns (uint256) {
-        return address(this).balance;
+    function _deadline() public view returns (uint256) {
+        return deadline;
+    }
+
+    function _preSale() public view returns (bool) {
+        return _isPresale;
     }
 
     function getTokenIdsOfWallet(address _owner) external view returns (uint256[] memory) {
@@ -136,12 +146,16 @@ contract Anony is ERC721Enumerable, Ownable, ERC721Burnable, ERC721Pausable {
         uint256 balance = address(this).balance;
         require(balance > 0, "WITHDRAW: No balance in contract");
 
-        _widthdraw(ownerAddress, address(this).balance);
+        _widthdraw(owner(), address(this).balance);
     }
 
     function _widthdraw(address _address, uint256 _amount) private {
         (bool success, ) = _address.call{value: _amount}("");
         require(success, "WITHDRAW: Transfer failed.");
+    }
+
+    function flipSaleState() public onlyOwner {
+        SALE_OPEN = !SALE_OPEN;
     }
 
     function _beforeTokenTransfer(

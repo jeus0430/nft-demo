@@ -1,5 +1,5 @@
-const Migrations = artifacts.require("Migrations");
+const Anony = artifacts.require("Anony");
 
 module.exports = function (deployer) {
-  deployer.deploy(Migrations);
+  deployer.deploy(Anony, 'base');
 };
